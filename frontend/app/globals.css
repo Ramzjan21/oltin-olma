@@ -1,0 +1,186 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 10, 10, 15;
+  --background-end-rgb: 19, 19, 26;
+  --tg-theme-bg-color: #0a0a0f;
+  --tg-theme-text-color: #ffffff;
+  --tg-theme-hint-color: #aaaaaa;
+  --tg-theme-link-color: #ffd700;
+  --tg-theme-button-color: #8b5cf6;
+  --tg-theme-button-text-color: #ffffff;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+html {
+  /* Prevent zoom on mobile */
+  touch-action: manipulation;
+  -ms-touch-action: manipulation;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+  overflow-x: hidden;
+  /* Mobile optimizations */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Prevent pull-to-refresh on mobile */
+  overscroll-behavior-y: contain;
+  /* Safe area for notch devices */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Glassmorphism effect */
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Glow effect */
+.glow-gold {
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+}
+
+.glow-purple {
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
+}
+
+/* Lightning background animation */
+@keyframes lightning {
+  0%, 100% { opacity: 0.1; }
+  50% { opacity: 0.3; }
+}
+
+.lightning-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(ellipse at center, rgba(139, 92, 246, 0.15) 0%, transparent 70%);
+  animation: lightning 4s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a24;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #8b5cf6;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a78bfa;
+}
+
+/* Button hover effects - Mobile optimized */
+.btn-primary {
+  @apply bg-gradient-to-r from-purple-500 to-purple-600 active:from-purple-600 active:to-purple-700 text-white font-bold py-4 px-6 rounded-xl transition-all duration-200 active:scale-95 glow-purple;
+  min-height: 48px; /* Touch target size */
+  touch-action: manipulation;
+}
+
+.btn-gold {
+  @apply bg-gradient-to-r from-gold-500 to-gold-400 active:from-gold-400 active:to-gold-300 text-dark-900 font-bold py-4 px-6 rounded-xl transition-all duration-200 active:scale-95 glow-gold;
+  min-height: 48px; /* Touch target size */
+  touch-action: manipulation;
+}
+
+/* Mobile button styles */
+@media (hover: none) and (pointer: coarse) {
+  .btn-primary:hover,
+  .btn-gold:hover {
+    transform: none;
+  }
+}
+
+/* Card animations - Mobile optimized */
+.card-hover {
+  @apply transition-all duration-200 active:scale-95;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .card-hover:hover {
+    @apply transform scale-105 shadow-2xl;
+  }
+}
+
+/* Mobile-specific styles */
+@media (max-width: 768px) {
+  .glass {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(8px);
+  }
+  
+  .btn-primary,
+  .btn-gold {
+    font-size: 16px; /* Prevent zoom on iOS */
+    padding: 1rem 1.5rem;
+  }
+}
+
+/* Safe area padding for mobile */
+.safe-area-top {
+  padding-top: max(1rem, env(safe-area-inset-top));
+}
+
+.safe-area-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+/* Pull to refresh prevention */
+.no-pull-refresh {
+  overscroll-behavior-y: contain;
+}
+
+/* Mobile touch feedback */
+.touch-feedback {
+  @apply active:opacity-70 transition-opacity duration-150;
+}
+
+/* Text glow */
+.text-glow-gold {
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.8), 0 0 20px rgba(255, 215, 0, 0.5);
+}
+
+.text-glow-purple {
+  text-shadow: 0 0 10px rgba(139, 92, 246, 0.8), 0 0 20px rgba(139, 92, 246, 0.5);
+}
+
+/* Loading spinner */
+.spinner {
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top: 3px solid #ffd700;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
