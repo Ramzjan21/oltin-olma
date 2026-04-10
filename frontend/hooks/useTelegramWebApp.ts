@@ -71,8 +71,8 @@ declare global {
 }
 
 interface UseTelegramWebAppReturn {
-  webApp: typeof window.Telegram.WebApp | null;
-  user: typeof window.Telegram.WebApp.initDataUnsafe.user | null;
+  webApp: any | null;
+  user: any | null;
   isReady: boolean;
 }
 
