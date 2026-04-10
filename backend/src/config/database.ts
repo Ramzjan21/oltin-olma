@@ -8,8 +8,14 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-pool.on('connect', () => {
-  console.log('✅ PostgreSQL ga muvaffaqiyatli ulandi');
+// Test database connection
+pool.query('SELECT NOW()', (err, res) => {
+  if (err) {
+    console.error('❌ PostgreSQL ulanish xatosi:', err.message);
+  } else {
+    console.log('✅ PostgreSQL ga muvaffaqiyatli ulandi');
+    console.log('📅 Database vaqti:', res.rows[0].now);
+  }
 });
 
 pool.on('error', (err) => {
