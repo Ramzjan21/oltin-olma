@@ -94,7 +94,7 @@ interface TreeState {
   fetchTree: () => Promise<void>;
   purchaseTree: (paymentData: any) => Promise<void>;
   collectApple: () => Promise<void>;
-  claimReward: () => Promise<void>;
+  claimReward: () => Promise<{ amount: number; newBalance: number }>;
 }
 
 export const useTreeStore = create<TreeState>((set, get) => ({
