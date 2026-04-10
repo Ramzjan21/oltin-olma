@@ -2,12 +2,14 @@
   "name": "golden-apple-tree",
   "version": "1.0.0",
   "description": "Gamified earning system with Golden Apple Tree",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm run dev",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:all": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "build": "cd frontend && npm install && npm run build && cd ../backend && npm install && npm run build",
+    "start": "node server.js",
     "build:backend": "cd backend && npm run build",
     "build:frontend": "cd frontend && npm run build",
     "start:backend": "cd backend && npm start",
@@ -16,6 +18,9 @@
   "keywords": ["gamification", "telegram", "earning"],
   "author": "",
   "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2"
+  },
   "devDependencies": {
     "concurrently": "^8.2.2"
   }

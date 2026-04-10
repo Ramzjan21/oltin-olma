@@ -75,9 +75,10 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   res.status(500).json({ success: false, message: 'Server xatosi' });
 });
 
-// Start server
-server.listen(PORT, () => {
-  console.log(`
+// Start server only if not imported as module
+if (require.main === module) {
+  server.listen(PORT, () => {
+    console.log(`
 ╔═══════════════════════════════════════════╗
 ║   🌳 OLTIN OLMA DARAXT SERVER            ║
 ║   🚀 Server ishga tushdi                  ║
@@ -85,7 +86,8 @@ server.listen(PORT, () => {
 ║   🌐 URL: http://localhost:${PORT}        ║
 ║   ⚡ WebSocket: ws://localhost:${PORT}    ║
 ╚═══════════════════════════════════════════╝
-  `);
-});
+    `);
+  });
+}
 
 export default app;
