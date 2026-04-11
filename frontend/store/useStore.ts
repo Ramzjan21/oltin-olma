@@ -3,6 +3,9 @@ import axios from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
+// Axios default config - credentials o'chirilgan
+axios.defaults.withCredentials = false;
+
 interface User {
   id: number;
   telegramId: number;
