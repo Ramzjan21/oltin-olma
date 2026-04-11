@@ -16,15 +16,18 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [hasAttemptedLogin, setHasAttemptedLogin] = useState(false);
 
+  // Redirect to dashboard if already logged in
   useEffect(() => {
     if (token) {
-      router.push('/dashboard');
+      console.log('Token found, redirecting to dashboard...');
+      router.replace('/dashboard');
     }
   }, [token, router]);
 
   // Auto-login if Telegram WebApp data is available (faqat bir marta)
   useEffect(() => {
     if (isReady && user && !token && !loading && !hasAttemptedLogin) {
+      console.log('Auto-login triggered');
       setHasAttemptedLogin(true);
       handleTelegramLogin();
     }
@@ -32,8 +35,9 @@ export default function Home() {
 
   // Telegram WebApp login
   const handleTelegramLogin = async () => {
-    if (!webApp || !user) return;
+    if (!webApp || !user || loading) return;
     
+    console.log('Starting Telegram login...');
     setLoading(true);
     hapticFeedback.light();
     
@@ -48,18 +52,22 @@ export default function Home() {
       };
 
       await login(telegramData);
+      console.log('Login successful, token saved');
       hapticFeedback.success();
-      router.push('/dashboard');
+      
+      // Token zustand'da saqlanadi, useEffect avtomatik redirect qiladi
     } catch (error) {
       console.error('Login xatosi:', error);
       hapticFeedback.error();
-    } finally {
+      setHasAttemptedLogin(false); // Qayta urinish imkoniyati
       setLoading(false);
     }
   };
 
   // Mock Telegram login for testing (browser only)
   const handleMockLogin = async () => {
+    if (loading) return;
+    
     setLoading(true);
     hapticFeedback.light();
     
@@ -74,10 +82,25 @@ export default function Home() {
       };
 
       await login(mockTelegramData);
+      console.log('Mock login successful');
       hapticFeedback.success();
-      router.push('/dashboard');
+      
+      // Token zustand'da saqlanadi, useEffect avtomatik redirect qiladi
     } catch (error) {
       console.error('Login xatosi:', error);
+      hapticFeedback.error();
+      setLoading(false);
+    }
+  };
+
+  // Agar token bor bo'lsa, loading ko'rsatish
+  if (token) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="spinner" />
+      </div>
+    );
+  }
       hapticFeedback.error();
     } finally {
       setLoading(false);
