@@ -14,19 +14,21 @@ export default function Home() {
   const { login, token } = useAuthStore();
   const { webApp, user, isReady } = useTelegramWebApp();
   const [loading, setLoading] = useState(false);
+  const [hasAttemptedLogin, setHasAttemptedLogin] = useState(false);
 
   useEffect(() => {
     if (token) {
       router.push('/dashboard');
     }
-  }, [token]);
+  }, [token, router]);
 
-  // Auto-login if Telegram WebApp data is available
+  // Auto-login if Telegram WebApp data is available (faqat bir marta)
   useEffect(() => {
-    if (isReady && user && !token && !loading) {
+    if (isReady && user && !token && !loading && !hasAttemptedLogin) {
+      setHasAttemptedLogin(true);
       handleTelegramLogin();
     }
-  }, [isReady, user, token]);
+  }, [isReady, user, token, loading, hasAttemptedLogin]);
 
   // Telegram WebApp login
   const handleTelegramLogin = async () => {
