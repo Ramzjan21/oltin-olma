@@ -3,8 +3,14 @@ import axios from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
-// Axios default config - credentials o'chirilgan
-axios.defaults.withCredentials = false;
+// Create axios instance WITHOUT credentials
+const apiClient = axios.create({
+  baseURL: API_URL,
+  withCredentials: false,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
 interface User {
   id: number;
@@ -54,7 +60,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (telegramData: any) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await axios.post(`${API_URL}/auth/telegram-auth`, telegramData);
+      const response = await apiClient.post('/auth/telegram-auth', telegramData);
       const { token, user } = response.data;
       
       localStorage.setItem('token', token);
@@ -79,7 +85,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     set({ isLoading: true });
     try {
-      const response = await axios.get(`${API_URL}/auth/me`, {
+      const response = await apiClient.get('/auth/me', {
         headers: { Authorization: `Bearer ${token}` }
       });
       set({ user: response.data.user, isLoading: false });
@@ -111,7 +117,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
 
     set({ isLoading: true, error: null });
     try {
-      const response = await axios.get(`${API_URL}/tree/active`, {
+      const response = await apiClient.get('/tree/active', {
         headers: { Authorization: `Bearer ${token}` }
       });
       set({ tree: response.data.tree, isLoading: false });
@@ -129,7 +135,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
 
     set({ isLoading: true, error: null });
     try {
-      const response = await axios.post(`${API_URL}/tree/purchase`, paymentData, {
+      const response = await apiClient.post('/tree/purchase', paymentData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       set({ tree: response.data.tree, isLoading: false });
@@ -151,7 +157,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
 
     set({ isLoading: true, error: null });
     try {
-      const response = await axios.post(`${API_URL}/tree/collect`, {}, {
+      const response = await apiClient.post('/tree/collect', {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -173,7 +179,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
 
     set({ isLoading: true, error: null });
     try {
-      const response = await axios.post(`${API_URL}/tree/claim-reward`, {}, {
+      const response = await apiClient.post('/tree/claim-reward', {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
