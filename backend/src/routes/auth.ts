@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { UserModel } from '../models/User';
-import { generateToken, AuthRequest } from '../middleware/auth';
+import { generateToken, authenticateToken, AuthRequest } from '../middleware/auth';
 import crypto from 'crypto';
 
 const router = Router();
