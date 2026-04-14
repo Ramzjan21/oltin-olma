@@ -19,14 +19,24 @@ export default function Dashboard() {
   const { tree, fetchTree, collectApple, claimReward, isLoading } = useTreeStore();
   const { webApp } = useTelegramWebApp();
   const [notifications, setNotifications] = useState<Array<{ id: string; message: string; type: 'success' | 'error' | 'info' }>>([]);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   useEffect(() => {
     if (!token) {
       router.push('/');
       return;
     }
-    fetchUser();
-    fetchTree();
+    // Ma'lumotlarni yuklash
+    const loadData = async () => {
+      try {
+        await fetchUser();
+        await fetchTree();
+      } finally {
+        setInitialLoading(false);
+      }
+    };
+    loadData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const addNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -67,7 +77,7 @@ export default function Dashboard() {
     router.push('/purchase');
   };
 
-  if (!user) {
+  if (initialLoading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="spinner" />

@@ -89,9 +89,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         headers: { Authorization: `Bearer ${token}` }
       });
       set({ user: response.data.user, isLoading: false });
-    } catch (error) {
+    } catch (error: any) {
       set({ isLoading: false });
-      get().logout();
+      // Faqat 401 (token yaroqsiz) bo'lsa logout qilamiz
+      // Boshqa xatolarda (network, 500, CORS) tokenni saqlab qolamiz
+      if (error?.response?.status === 401) {
+        get().logout();
+      }
     }
   },
 }));
