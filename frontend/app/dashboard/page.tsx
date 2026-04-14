@@ -19,23 +19,36 @@ export default function Dashboard() {
   const { tree, fetchTree, collectApple, claimReward, isLoading } = useTreeStore();
   const { webApp } = useTelegramWebApp();
   const [notifications, setNotifications] = useState<Array<{ id: string; message: string; type: 'success' | 'error' | 'info' }>>([]);
-  const [initialLoading, setInitialLoading] = useState(true);
+  // Agar user allaqachon login'dan keyin yukli bo'lsa, spinner ko'rsatmaymiz
+  const [initialLoading, setInitialLoading] = useState(!user);
 
   useEffect(() => {
     if (!token) {
       router.push('/');
       return;
     }
-    // Ma'lumotlarni yuklash
+
+    // Agar user allaqachon store'da bo'lsa, faqat tree yuklaymiz
     const loadData = async () => {
       try {
-        await fetchUser();
+        // User yo'q bo'lsa backenddan olamiz, bor bo'lsa o'tkazib yuboramiz
+        if (!user) {
+          await fetchUser();
+        }
         await fetchTree();
       } finally {
         setInitialLoading(false);
       }
     };
+
     loadData();
+
+    // 8 soniyadan keyin hali ham yuklanayotgan bo'lsa, majburiy to'xtatamiz
+    const timeout = setTimeout(() => {
+      setInitialLoading(false);
+    }, 8000);
+
+    return () => clearTimeout(timeout);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
@@ -77,7 +90,13 @@ export default function Dashboard() {
     router.push('/purchase');
   };
 
-  if (initialLoading || !user) {
+  // Yuklanish tugadi lekin user yo'q — bosh sahifaga qaytarish
+  if (!initialLoading && !user) {
+    router.push('/');
+    return null;
+  }
+
+  if (initialLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="spinner" />
