@@ -12,6 +12,15 @@ const apiClient = axios.create({
   },
 });
 
+// Har bir so'rovga localStorage'dan token avtomatik qo'shiladi
+apiClient.interceptors.request.use((config) => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 interface User {
   id: number;
   telegramId: number;
