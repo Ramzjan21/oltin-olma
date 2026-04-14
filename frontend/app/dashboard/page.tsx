@@ -125,7 +125,7 @@ export default function Dashboard() {
                 Oltin Olma Daraxt
               </h1>
               <p className="text-sm md:text-base text-gray-400">
-                Xush kelibsiz, {user.firstName || user.username}!
+                Xush kelibsiz, {user?.firstName || user?.username || 'Foydalanuvchi'}!
               </p>
             </div>
             <GlassCard className="flex items-center gap-3 w-full md:w-auto" hover={false}>
@@ -133,7 +133,7 @@ export default function Dashboard() {
               <div>
                 <p className="text-xs text-gray-400">Balans</p>
                 <p className="text-lg md:text-2xl font-bold text-gold-400">
-                  {user.balance.toLocaleString()} UZS
+                  {user?.balance?.toLocaleString() ?? '0'} UZS
                 </p>
               </div>
             </GlassCard>
