@@ -74,7 +74,7 @@ router.post('/telegram-auth', async (req, res: Response) => {
 /**
  * Joriy foydalanuvchi ma'lumotlarini olish
  */
-router.get('/me', async (req: AuthRequest, res: Response) => {
+router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ success: false, message: 'Autentifikatsiya talab qilinadi' });
