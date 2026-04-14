@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 declare global {
   interface Window {
@@ -77,68 +77,71 @@ interface UseTelegramWebAppReturn {
 }
 
 export const useTelegramWebApp = (): UseTelegramWebAppReturn => {
+  // Har doim false bilan boshlanadi — server va client birinchi render bir xil bo'ladi
+  const [state, setState] = useState<UseTelegramWebAppReturn>({
+    webApp: null,
+    user: null,
+    isReady: false,
+  });
+
   useEffect(() => {
+    // Bu kod faqat client-side da va faqat bir marta ishlaydi
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
       const tg = window.Telegram.WebApp;
-      
-      // Initialize WebApp
+
+      // Telegram WebApp ni ishga tushirish
       tg.ready();
       tg.expand();
-      
-      // Set theme colors
       tg.setHeaderColor('#0a0a0f');
       tg.setBackgroundColor('#0a0a0f');
-      
-      // Enable closing confirmation
       tg.enableClosingConfirmation();
+
+      // State ni yangilash — hydration tugagandan keyin
+      setState({
+        webApp: tg,
+        user: tg.initDataUnsafe?.user || null,
+        isReady: true,
+      });
     }
-  }, []);
+  }, []); // Faqat bir marta ishlaydi
 
-  if (typeof window === 'undefined' || !window.Telegram?.WebApp) {
-    return { webApp: null, user: null, isReady: false };
-  }
-
-  return {
-    webApp: window.Telegram.WebApp,
-    user: window.Telegram.WebApp.initDataUnsafe.user || null,
-    isReady: true,
-  };
+  return state;
 };
 
 // Haptic feedback helper
 export const hapticFeedback = {
   light: () => {
-    if (window.Telegram?.WebApp?.HapticFeedback) {
+    if (typeof window !== 'undefined' && window.Telegram?.WebApp?.HapticFeedback) {
       window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
     }
   },
   medium: () => {
-    if (window.Telegram?.WebApp?.HapticFeedback) {
+    if (typeof window !== 'undefined' && window.Telegram?.WebApp?.HapticFeedback) {
       window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
     }
   },
   heavy: () => {
-    if (window.Telegram?.WebApp?.HapticFeedback) {
+    if (typeof window !== 'undefined' && window.Telegram?.WebApp?.HapticFeedback) {
       window.Telegram.WebApp.HapticFeedback.impactOccurred('heavy');
     }
   },
   success: () => {
-    if (window.Telegram?.WebApp?.HapticFeedback) {
+    if (typeof window !== 'undefined' && window.Telegram?.WebApp?.HapticFeedback) {
       window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
     }
   },
   error: () => {
-    if (window.Telegram?.WebApp?.HapticFeedback) {
+    if (typeof window !== 'undefined' && window.Telegram?.WebApp?.HapticFeedback) {
       window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
     }
   },
   warning: () => {
-    if (window.Telegram?.WebApp?.HapticFeedback) {
+    if (typeof window !== 'undefined' && window.Telegram?.WebApp?.HapticFeedback) {
       window.Telegram.WebApp.HapticFeedback.notificationOccurred('warning');
     }
   },
   selection: () => {
-    if (window.Telegram?.WebApp?.HapticFeedback) {
+    if (typeof window !== 'undefined' && window.Telegram?.WebApp?.HapticFeedback) {
       window.Telegram.WebApp.HapticFeedback.selectionChanged();
     }
   },
