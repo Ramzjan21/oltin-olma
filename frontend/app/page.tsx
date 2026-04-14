@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/useStore';
 import { useTelegramWebApp, hapticFeedback } from '@/hooks/useTelegramWebApp';
@@ -14,33 +14,35 @@ export default function Home() {
   const { login, token } = useAuthStore();
   const { webApp, user, isReady } = useTelegramWebApp();
   const [loading, setLoading] = useState(false);
-  const [hasAttemptedLogin, setHasAttemptedLogin] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // useRef bilan faqat bir marta auto-login ishga tushadi
+  const hasAttemptedLogin = useRef(false);
 
   // Redirect to dashboard if already logged in
   useEffect(() => {
     if (token) {
-      console.log('Token found, redirecting to dashboard...');
       router.replace('/dashboard');
     }
   }, [token, router]);
 
   // Auto-login if Telegram WebApp data is available (faqat bir marta)
   useEffect(() => {
-    if (isReady && user && !token && !loading && !hasAttemptedLogin) {
-      console.log('Auto-login triggered');
-      setHasAttemptedLogin(true);
+    if (isReady && user && !token && !loading && !hasAttemptedLogin.current) {
+      hasAttemptedLogin.current = true;
       handleTelegramLogin();
     }
-  }, [isReady, user, token, loading, hasAttemptedLogin]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReady, user, token]);
 
   // Telegram WebApp login
   const handleTelegramLogin = async () => {
     if (!webApp || !user || loading) return;
-    
+
     console.log('Starting Telegram login...');
     setLoading(true);
+    setError(null);
     hapticFeedback.light();
-    
+
     try {
       const telegramData = {
         id: user.id,
@@ -54,12 +56,13 @@ export default function Home() {
       await login(telegramData);
       console.log('Login successful, token saved');
       hapticFeedback.success();
-      
       // Token zustand'da saqlanadi, useEffect avtomatik redirect qiladi
-    } catch (error) {
-      console.error('Login xatosi:', error);
+    } catch (err: any) {
+      console.error('Login xatosi:', err);
       hapticFeedback.error();
-      setHasAttemptedLogin(false); // Qayta urinish imkoniyati
+      setError(err?.response?.data?.message || 'Kirish xatosi. Qayta urining.');
+      // hasAttemptedLogin.current = true bo'lib qoladi — cheksiz loop yo'q
+    } finally {
       setLoading(false);
     }
   };
@@ -67,10 +70,11 @@ export default function Home() {
   // Mock Telegram login for testing (browser only)
   const handleMockLogin = async () => {
     if (loading) return;
-    
+
     setLoading(true);
+    setError(null);
     hapticFeedback.light();
-    
+
     try {
       const mockTelegramData = {
         id: Math.floor(Math.random() * 1000000),
@@ -84,11 +88,12 @@ export default function Home() {
       await login(mockTelegramData);
       console.log('Mock login successful');
       hapticFeedback.success();
-      
       // Token zustand'da saqlanadi, useEffect avtomatik redirect qiladi
-    } catch (error) {
-      console.error('Login xatosi:', error);
+    } catch (err: any) {
+      console.error('Mock login xatosi:', err);
       hapticFeedback.error();
+      setError(err?.response?.data?.message || 'Kirish xatosi. Qayta urining.');
+    } finally {
       setLoading(false);
     }
   };
@@ -101,11 +106,6 @@ export default function Home() {
       </div>
     );
   }
-      hapticFeedback.error();
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen relative flex items-center justify-center safe-area-top safe-area-bottom px-4 py-6">
@@ -207,6 +207,13 @@ export default function Home() {
             <h2 className="text-xl md:text-2xl font-bold text-white mb-6">
               Boshlash uchun kiring
             </h2>
+
+            {/* Error message */}
+            {error && (
+              <div className="mb-4 p-3 rounded-lg bg-red-500/20 border border-red-500/50">
+                <p className="text-sm text-red-400">{error}</p>
+              </div>
+            )}
 
             {/* Telegram Login Button */}
             <Button
