@@ -19,35 +19,30 @@ export default function Dashboard() {
   const { tree, fetchTree, collectApple, claimReward, isLoading } = useTreeStore();
   const { webApp } = useTelegramWebApp();
   const [notifications, setNotifications] = useState<Array<{ id: string; message: string; type: 'success' | 'error' | 'info' }>>([]);
-  // Agar user allaqachon login'dan keyin yukli bo'lsa, spinner ko'rsatmaymiz
-  const [initialLoading, setInitialLoading] = useState(!user);
+  // Tree yuklanmoqda bo'lsa true, aks holda false
+  const [treeLoading, setTreeLoading] = useState(true);
 
   useEffect(() => {
+    // Token yo'q bo'lsa bosh sahifaga qaytarish
     if (!token) {
       router.push('/');
       return;
     }
 
-    // Agar user allaqachon store'da bo'lsa, faqat tree yuklaymiz
     const loadData = async () => {
       try {
-        // User yo'q bo'lsa backenddan olamiz, bor bo'lsa o'tkazib yuboramiz
-        if (!user) {
-          await fetchUser();
-        }
+        // fetchUser fon rejimida ishlaydi — bloklamaydi
+        fetchUser().catch(() => {}); // Xato bo'lsa ham davom etadi
         await fetchTree();
       } finally {
-        setInitialLoading(false);
+        setTreeLoading(false);
       }
     };
 
     loadData();
 
-    // 8 soniyadan keyin hali ham yuklanayotgan bo'lsa, majburiy to'xtatamiz
-    const timeout = setTimeout(() => {
-      setInitialLoading(false);
-    }, 8000);
-
+    // 5 soniyadan keyin majburiy to'xtatamiz
+    const timeout = setTimeout(() => setTreeLoading(false), 5000);
     return () => clearTimeout(timeout);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
@@ -66,7 +61,7 @@ export default function Dashboard() {
     try {
       await collectApple();
       hapticFeedback.success();
-      addNotification('Olma muvaffaqiyatli yig\'ildi! 🍎', 'success');
+      addNotification("Olma muvaffaqiyatli yig'ildi! 🍎", 'success');
     } catch (error: any) {
       hapticFeedback.error();
       addNotification(error.response?.data?.message || 'Xato yuz berdi', 'error');
@@ -90,13 +85,13 @@ export default function Dashboard() {
     router.push('/purchase');
   };
 
-  // Yuklanish tugadi lekin user yo'q — bosh sahifaga qaytarish
-  if (!initialLoading && !user) {
-    router.push('/');
+  // Token yo'q — bosh sahifaga (user null bo'lsa ham qaytarmaymiz, chunki u localStorage dagi user bo'lishi mumkin)
+  if (!token) {
     return null;
   }
 
-  if (initialLoading) {
+  // Tree yuklanmoqda (user bor yoki yo'q — kutamiz)
+  if (treeLoading && !user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="spinner" />
@@ -139,8 +134,13 @@ export default function Dashboard() {
             </GlassCard>
           </div>
         </motion.div>
+
         {/* Main Content */}
-        {!tree ? (
+        {treeLoading ? (
+          <div className="flex justify-center py-12">
+            <div className="spinner" />
+          </div>
+        ) : !tree ? (
           <GlassCard className="text-center py-8 md:py-12" hover={false}>
             <motion.div
               initial={{ scale: 0 }}

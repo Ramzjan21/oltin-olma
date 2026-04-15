@@ -3,24 +3,52 @@ import axios from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
-// Create axios instance WITHOUT credentials
+// ─── localStorage yordamchi funksiyalar ───────────────────────────────────────
+const getStoredToken = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('token');
+};
+
+const getStoredUser = (): User | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem('user');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const saveUser = (user: User) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('user', JSON.stringify(user));
+  }
+};
+
+const clearStorage = () => {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+  }
+};
+
+// ─── Axios instance ────────────────────────────────────────────────────────────
 const apiClient = axios.create({
   baseURL: API_URL,
   withCredentials: false,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: { 'Content-Type': 'application/json' },
 });
 
-// Har bir so'rovga localStorage'dan token avtomatik qo'shiladi
+// Har bir so'rovga token avtomatik qo'shiladi
 apiClient.interceptors.request.use((config) => {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  const token = getStoredToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
+// ─── Interfacelar ──────────────────────────────────────────────────────────────
 interface User {
   id: number;
   telegramId: number;
@@ -44,6 +72,7 @@ interface Tree {
   canClaimReward: boolean;
 }
 
+// ─── Auth Store ────────────────────────────────────────────────────────────────
 interface AuthState {
   user: User | null;
   token: string | null;
@@ -52,39 +81,35 @@ interface AuthState {
   login: (telegramData: any) => Promise<void>;
   logout: () => void;
   fetchUser: () => Promise<void>;
-  setToken: (token: string) => void;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
-  user: null,
-  token: typeof window !== 'undefined' ? localStorage.getItem('token') : null,
+  // localStorage dan boshlang'ich qiymat (sahifa yangilansa ham saqlanadi)
+  user: getStoredUser(),
+  token: getStoredToken(),
   isLoading: false,
   error: null,
-
-  setToken: (token: string) => {
-    localStorage.setItem('token', token);
-    set({ token });
-  },
 
   login: async (telegramData: any) => {
     set({ isLoading: true, error: null });
     try {
       const response = await apiClient.post('/auth/telegram-auth', telegramData);
       const { token, user } = response.data;
-      
+
       localStorage.setItem('token', token);
+      saveUser(user);
       set({ token, user, isLoading: false });
     } catch (error: any) {
-      set({ 
-        error: error.response?.data?.message || 'Kirish xatosi', 
-        isLoading: false 
+      set({
+        error: error.response?.data?.message || 'Kirish xatosi',
+        isLoading: false,
       });
       throw error;
     }
   },
 
   logout: () => {
-    localStorage.removeItem('token');
+    clearStorage();
     set({ user: null, token: null });
   },
 
@@ -92,16 +117,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const token = get().token;
     if (!token) return;
 
-    set({ isLoading: true });
     try {
-      const response = await apiClient.get('/auth/me', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      set({ user: response.data.user, isLoading: false });
+      const response = await apiClient.get('/auth/me');
+      const user = response.data.user;
+      saveUser(user);
+      set({ user, isLoading: false });
     } catch (error: any) {
-      set({ isLoading: false });
       // Faqat 401 (token yaroqsiz) bo'lsa logout qilamiz
-      // Boshqa xatolarda (network, 500, CORS) tokenni saqlab qolamiz
+      // Network xatolarda localStorage dagi user saqlanib qoladi
       if (error?.response?.status === 401) {
         get().logout();
       }
@@ -109,6 +132,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 }));
 
+// ─── Tree Store ────────────────────────────────────────────────────────────────
 interface TreeState {
   tree: Tree | null;
   isLoading: boolean;
@@ -130,14 +154,12 @@ export const useTreeStore = create<TreeState>((set, get) => ({
 
     set({ isLoading: true, error: null });
     try {
-      const response = await apiClient.get('/tree/active', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await apiClient.get('/tree/active');
       set({ tree: response.data.tree, isLoading: false });
     } catch (error: any) {
-      set({ 
-        error: error.response?.data?.message || 'Xato', 
-        isLoading: false 
+      set({
+        error: error.response?.data?.message || 'Xato',
+        isLoading: false,
       });
     }
   },
@@ -148,17 +170,13 @@ export const useTreeStore = create<TreeState>((set, get) => ({
 
     set({ isLoading: true, error: null });
     try {
-      const response = await apiClient.post('/tree/purchase', paymentData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await apiClient.post('/tree/purchase', paymentData);
       set({ tree: response.data.tree, isLoading: false });
-      
-      // Balansni yangilash
       await useAuthStore.getState().fetchUser();
     } catch (error: any) {
-      set({ 
-        error: error.response?.data?.message || 'Sotib olish xatosi', 
-        isLoading: false 
+      set({
+        error: error.response?.data?.message || 'Sotib olish xatosi',
+        isLoading: false,
       });
       throw error;
     }
@@ -170,17 +188,13 @@ export const useTreeStore = create<TreeState>((set, get) => ({
 
     set({ isLoading: true, error: null });
     try {
-      const response = await apiClient.post('/tree/collect', {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      // Daraxtni yangilash
+      await apiClient.post('/tree/collect', {});
       await get().fetchTree();
       set({ isLoading: false });
     } catch (error: any) {
-      set({ 
-        error: error.response?.data?.message || 'Yig\'ish xatosi', 
-        isLoading: false 
+      set({
+        error: error.response?.data?.message || "Yig'ish xatosi",
+        isLoading: false,
       });
       throw error;
     }
@@ -192,20 +206,15 @@ export const useTreeStore = create<TreeState>((set, get) => ({
 
     set({ isLoading: true, error: null });
     try {
-      const response = await apiClient.post('/tree/claim-reward', {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      // Daraxt va foydalanuvchini yangilash
+      const response = await apiClient.post('/tree/claim-reward', {});
       await get().fetchTree();
       await useAuthStore.getState().fetchUser();
-      
       set({ isLoading: false });
       return response.data.reward;
     } catch (error: any) {
-      set({ 
-        error: error.response?.data?.message || 'Mukofot olish xatosi', 
-        isLoading: false 
+      set({
+        error: error.response?.data?.message || 'Mukofot olish xatosi',
+        isLoading: false,
       });
       throw error;
     }
