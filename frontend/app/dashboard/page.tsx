@@ -22,41 +22,42 @@ export default function Dashboard() {
   const [treeReady, setTreeReady] = useState(false); // tree fetch tugadimi
   const fetchedRef = useRef(false);
 
-  // Token tekshiruvi — faqat bir marta
+  // 1) Token yo'q bo'lsa bosh sahifaga qaytarish
   useEffect(() => {
-    if (!token) {
-      router.push('/');
-    }
+    if (!token) router.push('/');
   }, [token, router]);
 
-  // Tree va user yuklash — faqat bir marta, cleanup yo'q (timeout hech qachon o'chirilmaydi)
+  // 2) Ma'lumotlarni bir marta yuklash — token mavjud bo'lganda
   useEffect(() => {
-    console.log('📦 [Dashboard] useEffect. token:', token ? token.slice(0, 20) + '...' : 'YO\'Q');
-    if (!token || fetchedRef.current) {
-      console.log('⚠️ [Dashboard] Token yo\'q yoki allaqachon fetch qilindi — o\'tkazib yuborildi');
+    // getState() — closure emas, HOZIRGI token qiymatini oladi
+    const currentToken = useAuthStore.getState().token;
+    console.log('📦 [Dashboard] useEffect[token]. token:', currentToken ? currentToken.slice(0, 20) + '...' : 'YO\'Q');
+
+    if (!currentToken || fetchedRef.current) {
+      console.log('⚠️ [Dashboard] Token yo\'q yoki allaqachon yuklangan — o\'tkazildi');
       return;
     }
     fetchedRef.current = true;
 
-    // fetchUser fon rejimida (bloklamasin)
+    // fetchUser fon rejimida
     useAuthStore.getState().fetchUser().catch(() => {});
 
-    // fetchTree ni ishga tushir
+    // fetchTree
     console.log('🟡 [Dashboard] fetchTree boshlandi...');
     fetchTree()
       .catch(() => {})
       .finally(() => {
-        console.log('🟢 [Dashboard] fetchTree tugadi. treeReady=true');
+        console.log('🟢 [Dashboard] fetchTree tugadi → treeReady=true');
         setTreeReady(true);
       });
 
-    // 4 soniyadan keyin MAJBURIY to'xtatish (cleanup yo'q — hech qachon o'chirilmaydi)
+    // 4 soniya majburiy timeout — cleanup YO'Q, timer hech qachon o'chirilmaydi
     setTimeout(() => {
-      console.log('⏰ [Dashboard] 4s timeout — treeReady=true (majburiy)');
+      console.log('⏰ [Dashboard] 4s timeout → treeReady=true (majburiy)');
       setTreeReady(true);
     }, 4000);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // [] — faqat bir marta, token o'zgarsada qayta ishlamaydi
+  }, [token]); // token o'zgarganda (SSR→client) qayta ishga tushadi
 
   const addNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     const id = Date.now().toString();
