@@ -31,19 +31,30 @@ export default function Dashboard() {
 
   // Tree va user yuklash — faqat bir marta, cleanup yo'q (timeout hech qachon o'chirilmaydi)
   useEffect(() => {
-    if (!token || fetchedRef.current) return;
+    console.log('📦 [Dashboard] useEffect. token:', token ? token.slice(0, 20) + '...' : 'YO\'Q');
+    if (!token || fetchedRef.current) {
+      console.log('⚠️ [Dashboard] Token yo\'q yoki allaqachon fetch qilindi — o\'tkazib yuborildi');
+      return;
+    }
     fetchedRef.current = true;
 
     // fetchUser fon rejimida (bloklamasin)
     useAuthStore.getState().fetchUser().catch(() => {});
 
     // fetchTree ni ishga tushir
+    console.log('🟡 [Dashboard] fetchTree boshlandi...');
     fetchTree()
       .catch(() => {})
-      .finally(() => setTreeReady(true));
+      .finally(() => {
+        console.log('🟢 [Dashboard] fetchTree tugadi. treeReady=true');
+        setTreeReady(true);
+      });
 
     // 4 soniyadan keyin MAJBURIY to'xtatish (cleanup yo'q — hech qachon o'chirilmaydi)
-    setTimeout(() => setTreeReady(true), 4000);
+    setTimeout(() => {
+      console.log('⏰ [Dashboard] 4s timeout — treeReady=true (majburiy)');
+      setTreeReady(true);
+    }, 4000);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // [] — faqat bir marta, token o'zgarsada qayta ishlamaydi
 

@@ -79,14 +79,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: false,
 
   login: async (telegramData: any) => {
+    console.log('🔑 [login] Boshlandi. Telegram data:', telegramData);
     set({ isLoading: true });
     try {
       const res = await apiClient.post('/auth/telegram-auth', telegramData);
       const { token, user } = res.data;
+      console.log('✅ [login] Muvaffaqiyatli. User:', user);
       saveToken(token);
       saveUser(user);
       set({ token, user, isLoading: false });
     } catch (err: any) {
+      console.error('❌ [login] Xato:', err?.response?.status, err?.message);
       set({ isLoading: false });
       throw err;
     }
@@ -98,15 +101,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   fetchUser: async () => {
-    if (!get().token) return;
+    const token = get().token;
+    console.log('👤 [fetchUser] Token:', token ? token.slice(0, 20) + '...' : 'YO\'Q');
+    if (!token) return;
     try {
       const res = await apiClient.get('/auth/me');
       const user = res.data.user;
+      console.log('✅ [fetchUser] User:', user);
       saveUser(user);
       set({ user });
     } catch (err: any) {
-      // Faqat token yaroqsiz bo'lsa logout
-      if (err?.response?.status === 401) get().logout();
+      console.error('❌ [fetchUser] Xato:', err?.response?.status, err?.message);
+      if (err?.response?.status === 401) {
+        console.warn('🔒 [fetchUser] 401 — logout');
+        get().logout();
+      }
     }
   },
 }));
@@ -126,12 +135,19 @@ export const useTreeStore = create<TreeState>((set, get) => ({
   isLoading: false,
 
   fetchTree: async () => {
-    if (!useAuthStore.getState().token) return;
+    const token = useAuthStore.getState().token;
+    console.log('🌳 [fetchTree] Boshlandi. Token:', token ? token.slice(0, 20) + '...' : 'YO\'Q');
+    if (!token) {
+      console.warn('⚠️ [fetchTree] Token yo\'q — to\'xtatildi');
+      return;
+    }
     set({ isLoading: true });
     try {
       const res = await apiClient.get('/tree/active');
+      console.log('✅ [fetchTree] Tree:', res.data.tree);
       set({ tree: res.data.tree ?? null, isLoading: false });
-    } catch {
+    } catch (err: any) {
+      console.error('❌ [fetchTree] Xato:', err?.response?.status, err?.message, err?.code);
       set({ isLoading: false });
     }
   },
