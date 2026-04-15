@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuthStore, useTreeStore } from '@/store/useStore';
 import { useRouter } from 'next/navigation';
 import { useTelegramWebApp, hapticFeedback } from '@/hooks/useTelegramWebApp';
@@ -15,37 +15,37 @@ import { motion } from 'framer-motion';
 
 export default function Dashboard() {
   const router = useRouter();
-  const { user, token, fetchUser } = useAuthStore();
+  const { user, token } = useAuthStore();
   const { tree, fetchTree, collectApple, claimReward, isLoading } = useTreeStore();
   const { webApp } = useTelegramWebApp();
   const [notifications, setNotifications] = useState<Array<{ id: string; message: string; type: 'success' | 'error' | 'info' }>>([]);
-  // Tree yuklanmoqda bo'lsa true, aks holda false
-  const [treeLoading, setTreeLoading] = useState(true);
+  const [treeReady, setTreeReady] = useState(false); // tree fetch tugadimi
+  const fetchedRef = useRef(false);
 
+  // Token tekshiruvi — faqat bir marta
   useEffect(() => {
-    // Token yo'q bo'lsa bosh sahifaga qaytarish
     if (!token) {
       router.push('/');
-      return;
     }
+  }, [token, router]);
 
-    const loadData = async () => {
-      try {
-        // fetchUser fon rejimida ishlaydi — bloklamaydi
-        fetchUser().catch(() => {}); // Xato bo'lsa ham davom etadi
-        await fetchTree();
-      } finally {
-        setTreeLoading(false);
-      }
-    };
+  // Tree va user yuklash — faqat bir marta, cleanup yo'q (timeout hech qachon o'chirilmaydi)
+  useEffect(() => {
+    if (!token || fetchedRef.current) return;
+    fetchedRef.current = true;
 
-    loadData();
+    // fetchUser fon rejimida (bloklamasin)
+    useAuthStore.getState().fetchUser().catch(() => {});
 
-    // 5 soniyadan keyin majburiy to'xtatamiz
-    const timeout = setTimeout(() => setTreeLoading(false), 5000);
-    return () => clearTimeout(timeout);
+    // fetchTree ni ishga tushir
+    fetchTree()
+      .catch(() => {})
+      .finally(() => setTreeReady(true));
+
+    // 4 soniyadan keyin MAJBURIY to'xtatish (cleanup yo'q — hech qachon o'chirilmaydi)
+    setTimeout(() => setTreeReady(true), 4000);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, []); // [] — faqat bir marta, token o'zgarsada qayta ishlamaydi
 
   const addNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     const id = Date.now().toString();
@@ -64,7 +64,7 @@ export default function Dashboard() {
       addNotification("Olma muvaffaqiyatli yig'ildi! 🍎", 'success');
     } catch (error: any) {
       hapticFeedback.error();
-      addNotification(error.response?.data?.message || 'Xato yuz berdi', 'error');
+      addNotification(error?.response?.data?.message || 'Xato yuz berdi', 'error');
     }
   };
 
@@ -76,7 +76,7 @@ export default function Dashboard() {
       addNotification(`Tabriklaymiz! ${reward.amount.toLocaleString()} UZS mukofot oldingiz! 🎉`, 'success');
     } catch (error: any) {
       hapticFeedback.error();
-      addNotification(error.response?.data?.message || 'Xato yuz berdi', 'error');
+      addNotification(error?.response?.data?.message || 'Xato yuz berdi', 'error');
     }
   };
 
@@ -85,35 +85,16 @@ export default function Dashboard() {
     router.push('/purchase');
   };
 
-  // Token yo'q — bosh sahifaga (user null bo'lsa ham qaytarmaymiz, chunki u localStorage dagi user bo'lishi mumkin)
-  if (!token) {
-    return null;
-  }
-
-  // Tree yuklanmoqda (user bor yoki yo'q — kutamiz)
-  if (treeLoading && !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="spinner" />
-      </div>
-    );
-  }
+  if (!token) return null;
 
   return (
     <div className="min-h-screen relative safe-area-top safe-area-bottom">
-      {/* Lightning background */}
       <div className="lightning-bg" />
-
-      {/* Notifications */}
       <NotificationContainer notifications={notifications} onRemove={removeNotification} />
 
       <div className="relative z-10 px-4 py-4 md:py-8 max-w-6xl mx-auto">
-        {/* Header - Mobile optimized */}
-        <motion.div
-          className="mb-6"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
+        {/* Header */}
+        <motion.div className="mb-6" initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
               <h1 className="text-2xl md:text-4xl font-bold text-glow-gold text-gold-400 mb-1">
@@ -135,18 +116,14 @@ export default function Dashboard() {
           </div>
         </motion.div>
 
-        {/* Main Content */}
-        {treeLoading ? (
+        {/* Tree section — treeReady bo'lmaguncha yoki 4s o'tmaguncha spinner */}
+        {!treeReady ? (
           <div className="flex justify-center py-12">
             <div className="spinner" />
           </div>
         ) : !tree ? (
           <GlassCard className="text-center py-8 md:py-12" hover={false}>
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: 'spring', stiffness: 200 }}
-            >
+            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200 }}>
               <div className="text-6xl md:text-7xl mb-4">🌳</div>
               <h2 className="text-2xl md:text-3xl font-bold text-gold-400 mb-4 px-4">
                 Sizda hali daraxt yo'q
@@ -161,41 +138,23 @@ export default function Dashboard() {
           </GlassCard>
         ) : (
           <div className="space-y-4 md:space-y-6">
-            {/* Tree Visualization - Full width on mobile */}
             <GlassCard hover={false}>
-              <TreeVisualization
-                status={tree.status}
-                appleCount={tree.appleCount}
-                level={tree.level}
-              />
+              <TreeVisualization status={tree.status} appleCount={tree.appleCount} level={tree.level} />
             </GlassCard>
 
-            {/* Progress */}
             <GlassCard hover={false}>
-              <h3 className="text-lg md:text-xl font-bold text-gold-400 mb-4">
-                Haftalik Progress
-              </h3>
-              <ProgressBar
-                current={tree.daysCollected}
-                total={7}
-                label="Yig'ilgan kunlar"
-              />
+              <h3 className="text-lg md:text-xl font-bold text-gold-400 mb-4">Haftalik Progress</h3>
+              <ProgressBar current={tree.daysCollected} total={7} label="Yig'ilgan kunlar" />
               <div className="mt-4 flex items-center gap-2 text-sm text-gray-300">
                 <FaAppleAlt className="text-red-500" />
                 <span>Jami olmalar: {tree.appleCount}</span>
               </div>
             </GlassCard>
 
-            {/* Collection Timer */}
             {tree.status === 'active' && (
               <GlassCard hover={false}>
-                <h3 className="text-lg md:text-xl font-bold text-purple-400 mb-4">
-                  Keyingi yig'ish
-                </h3>
-                <CountdownTimer
-                  targetDate={tree.nextCollectionTime}
-                  onExpire={() => fetchTree()}
-                />
+                <h3 className="text-lg md:text-xl font-bold text-purple-400 mb-4">Keyingi yig'ish</h3>
+                <CountdownTimer targetDate={tree.nextCollectionTime} onExpire={() => fetchTree()} />
                 <div className="mt-6">
                   <Button
                     variant="primary"
@@ -211,36 +170,25 @@ export default function Dashboard() {
               </GlassCard>
             )}
 
-            {/* Claim Reward */}
             {tree.status === 'active' && tree.canClaimReward && (
               <GlassCard className="bg-gradient-to-r from-gold-500/10 to-purple-500/10 border-gold-500/50" hover={false}>
                 <h3 className="text-xl md:text-2xl font-bold text-gold-400 mb-4 text-glow-gold">
-                  <FaGift className="inline mr-2" />
-                  Mukofot tayyor!
+                  <FaGift className="inline mr-2" />Mukofot tayyor!
                 </h3>
                 <p className="text-sm md:text-base text-gray-300 mb-6">
                   Siz 7 kun davomida har kuni olma yig'idingiz. Endi mukofotingizni oling!
                 </p>
-                <Button
-                  variant="gold"
-                  onClick={handleClaimReward}
-                  disabled={isLoading}
-                  loading={isLoading}
-                  className="w-full text-base md:text-lg"
-                >
+                <Button variant="gold" onClick={handleClaimReward} disabled={isLoading} loading={isLoading} className="w-full text-base md:text-lg">
                   Mukofot olish (50,000 - 500,000 UZS)
                 </Button>
               </GlassCard>
             )}
 
-            {/* Dead Tree */}
             {tree.status === 'dead' && (
               <GlassCard className="bg-red-500/10 border-red-500/50" hover={false}>
                 <div className="text-center py-4">
                   <div className="text-5xl mb-4">💀</div>
-                  <h3 className="text-xl md:text-2xl font-bold text-red-400 mb-4">
-                    Daraxt o'ldi
-                  </h3>
+                  <h3 className="text-xl md:text-2xl font-bold text-red-400 mb-4">Daraxt o'ldi</h3>
                   <p className="text-sm md:text-base text-gray-300 mb-6 px-4">
                     Siz 1 kun o'tkazib yubordingiz. Yangi daraxt sotib olishingiz kerak.
                   </p>
@@ -251,14 +199,11 @@ export default function Dashboard() {
               </GlassCard>
             )}
 
-            {/* Completed Tree */}
             {tree.status === 'completed' && (
               <GlassCard className="bg-green-500/10 border-green-500/50" hover={false}>
                 <div className="text-center py-4">
                   <div className="text-5xl mb-4">🎉</div>
-                  <h3 className="text-xl md:text-2xl font-bold text-green-400 mb-4">
-                    Daraxt tugallandi!
-                  </h3>
+                  <h3 className="text-xl md:text-2xl font-bold text-green-400 mb-4">Daraxt tugallandi!</h3>
                   <p className="text-sm md:text-base text-gray-300 mb-6 px-4">
                     Tabriklaymiz! Siz mukofotingizni oldingiz. Yangi daraxt sotib olishingiz mumkin.
                   </p>
@@ -271,30 +216,22 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Info Cards - Mobile optimized */}
+        {/* Info Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
           <GlassCard className="text-center py-4" hover={false}>
             <div className="text-3xl md:text-4xl mb-2">🌳</div>
             <h4 className="text-base md:text-lg font-bold text-gold-400 mb-2">Har kuni yig'ing</h4>
-            <p className="text-xs md:text-sm text-gray-400 px-2">
-              Har 8 soatda bir marta olma yig'ish mumkin (kuniga 3 marta)
-            </p>
+            <p className="text-xs md:text-sm text-gray-400 px-2">Har 8 soatda bir marta olma yig'ish mumkin (kuniga 3 marta)</p>
           </GlassCard>
-
           <GlassCard className="text-center py-4" hover={false}>
             <div className="text-3xl md:text-4xl mb-2">📅</div>
             <h4 className="text-base md:text-lg font-bold text-gold-400 mb-2">7 kun davom eting</h4>
-            <p className="text-xs md:text-sm text-gray-400 px-2">
-              Har kuni yig'ish esdan chiqmasin, aks holda daraxt o'ladi
-            </p>
+            <p className="text-xs md:text-sm text-gray-400 px-2">Har kuni yig'ish esdan chiqmasin, aks holda daraxt o'ladi</p>
           </GlassCard>
-
           <GlassCard className="text-center py-4" hover={false}>
             <div className="text-3xl md:text-4xl mb-2">💰</div>
             <h4 className="text-base md:text-lg font-bold text-gold-400 mb-2">Mukofot oling</h4>
-            <p className="text-xs md:text-sm text-gray-400 px-2">
-              7 kundan keyin 50,000 - 500,000 UZS mukofot
-            </p>
+            <p className="text-xs md:text-sm text-gray-400 px-2">7 kundan keyin 50,000 - 500,000 UZS mukofot</p>
           </GlassCard>
         </div>
       </div>
