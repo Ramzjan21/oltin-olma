@@ -25,6 +25,15 @@ const corsOptions = {
 app.use(cors(corsOptions));
 // OPTIONS preflight so'rovlarini auth tekshiruvisiz qaytarish
 app.options('*', cors(corsOptions));
+
+// 304 muammosini hal qilish: ETag o'chirildi, cache yo'q
+app.disable('etag');
+app.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  next();
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

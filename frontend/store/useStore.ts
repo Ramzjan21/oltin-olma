@@ -30,6 +30,8 @@ const apiClient = axios.create({
   timeout: 20000, // 20 soniya — Render.com cold-start
   withCredentials: false,
   headers: { 'Content-Type': 'application/json' },
+  // 304 ni ham muvaffaqiyatli javob deb qabul qilamiz
+  validateStatus: (status) => (status >= 200 && status < 300) || status === 304,
 });
 
 // Token har so'rovga avtomatik qo'shiladi
