@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  reactStrictMode: false, // StrictMode useEffect'ni 2 marta chaqiradi — o'chirildi
   output: 'standalone',
   images: {
     domains: ['localhost'],

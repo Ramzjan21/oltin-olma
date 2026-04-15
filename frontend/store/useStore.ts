@@ -3,14 +3,12 @@ import axios from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
-// ─── localStorage yordamchi funksiyalar ───────────────────────────────────────
-const getStoredToken = (): string | null => {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('token');
-};
+// ─── localStorage helpers ────────────────────────────────────────────────────
+const isBrowser = typeof window !== 'undefined';
 
-const getStoredUser = (): User | null => {
-  if (typeof window === 'undefined') return null;
+const getToken = () => (isBrowser ? localStorage.getItem('token') : null);
+const getUser = (): User | null => {
+  if (!isBrowser) return null;
   try {
     const raw = localStorage.getItem('user');
     return raw ? JSON.parse(raw) : null;
@@ -18,37 +16,30 @@ const getStoredUser = (): User | null => {
     return null;
   }
 };
-
-const saveUser = (user: User) => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('user', JSON.stringify(user));
-  }
+const saveToken = (t: string) => isBrowser && localStorage.setItem('token', t);
+const saveUser = (u: User) => isBrowser && localStorage.setItem('user', JSON.stringify(u));
+const clearAll = () => {
+  if (!isBrowser) return;
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
 };
 
-const clearStorage = () => {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-  }
-};
-
-// ─── Axios instance ────────────────────────────────────────────────────────────
+// ─── Axios instance (timeout: 20s Render.com cold-start uchun) ───────────────
 const apiClient = axios.create({
   baseURL: API_URL,
+  timeout: 20000, // 20 soniya — Render.com cold-start
   withCredentials: false,
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Har bir so'rovga token avtomatik qo'shiladi
+// Token har so'rovga avtomatik qo'shiladi
 apiClient.interceptors.request.use((config) => {
-  const token = getStoredToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+  const token = getToken();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
-// ─── Interfacelar ──────────────────────────────────────────────────────────────
+// ─── Types ───────────────────────────────────────────────────────────────────
 interface User {
   id: number;
   telegramId: number;
@@ -72,73 +63,60 @@ interface Tree {
   canClaimReward: boolean;
 }
 
-// ─── Auth Store ────────────────────────────────────────────────────────────────
+// ─── Auth Store ───────────────────────────────────────────────────────────────
 interface AuthState {
   user: User | null;
   token: string | null;
   isLoading: boolean;
-  error: string | null;
   login: (telegramData: any) => Promise<void>;
   logout: () => void;
   fetchUser: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
-  // localStorage dan boshlang'ich qiymat (sahifa yangilansa ham saqlanadi)
-  user: getStoredUser(),
-  token: getStoredToken(),
+  user: getUser(),   // localStorage dan o'qiladi
+  token: getToken(), // localStorage dan o'qiladi
   isLoading: false,
-  error: null,
 
   login: async (telegramData: any) => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true });
     try {
-      const response = await apiClient.post('/auth/telegram-auth', telegramData);
-      const { token, user } = response.data;
-
-      localStorage.setItem('token', token);
+      const res = await apiClient.post('/auth/telegram-auth', telegramData);
+      const { token, user } = res.data;
+      saveToken(token);
       saveUser(user);
       set({ token, user, isLoading: false });
-    } catch (error: any) {
-      set({
-        error: error.response?.data?.message || 'Kirish xatosi',
-        isLoading: false,
-      });
-      throw error;
+    } catch (err: any) {
+      set({ isLoading: false });
+      throw err;
     }
   },
 
   logout: () => {
-    clearStorage();
+    clearAll();
     set({ user: null, token: null });
   },
 
   fetchUser: async () => {
-    const token = get().token;
-    if (!token) return;
-
+    if (!get().token) return;
     try {
-      const response = await apiClient.get('/auth/me');
-      const user = response.data.user;
+      const res = await apiClient.get('/auth/me');
+      const user = res.data.user;
       saveUser(user);
-      set({ user, isLoading: false });
-    } catch (error: any) {
-      // Faqat 401 (token yaroqsiz) bo'lsa logout qilamiz
-      // Network xatolarda localStorage dagi user saqlanib qoladi
-      if (error?.response?.status === 401) {
-        get().logout();
-      }
+      set({ user });
+    } catch (err: any) {
+      // Faqat token yaroqsiz bo'lsa logout
+      if (err?.response?.status === 401) get().logout();
     }
   },
 }));
 
-// ─── Tree Store ────────────────────────────────────────────────────────────────
+// ─── Tree Store ───────────────────────────────────────────────────────────────
 interface TreeState {
   tree: Tree | null;
   isLoading: boolean;
-  error: string | null;
   fetchTree: () => Promise<void>;
-  purchaseTree: (paymentData: any) => Promise<void>;
+  purchaseTree: (data: any) => Promise<void>;
   collectApple: () => Promise<void>;
   claimReward: () => Promise<{ amount: number; newBalance: number }>;
 }
@@ -146,77 +124,53 @@ interface TreeState {
 export const useTreeStore = create<TreeState>((set, get) => ({
   tree: null,
   isLoading: false,
-  error: null,
 
   fetchTree: async () => {
-    const token = useAuthStore.getState().token;
-    if (!token) return;
-
-    set({ isLoading: true, error: null });
+    if (!useAuthStore.getState().token) return;
+    set({ isLoading: true });
     try {
-      const response = await apiClient.get('/tree/active');
-      set({ tree: response.data.tree, isLoading: false });
-    } catch (error: any) {
-      set({
-        error: error.response?.data?.message || 'Xato',
-        isLoading: false,
-      });
+      const res = await apiClient.get('/tree/active');
+      set({ tree: res.data.tree ?? null, isLoading: false });
+    } catch {
+      set({ isLoading: false });
     }
   },
 
-  purchaseTree: async (paymentData: any) => {
-    const token = useAuthStore.getState().token;
-    if (!token) return;
-
-    set({ isLoading: true, error: null });
+  purchaseTree: async (data: any) => {
+    set({ isLoading: true });
     try {
-      const response = await apiClient.post('/tree/purchase', paymentData);
-      set({ tree: response.data.tree, isLoading: false });
+      const res = await apiClient.post('/tree/purchase', data);
+      set({ tree: res.data.tree, isLoading: false });
       await useAuthStore.getState().fetchUser();
-    } catch (error: any) {
-      set({
-        error: error.response?.data?.message || 'Sotib olish xatosi',
-        isLoading: false,
-      });
-      throw error;
+    } catch (err: any) {
+      set({ isLoading: false });
+      throw err;
     }
   },
 
   collectApple: async () => {
-    const token = useAuthStore.getState().token;
-    if (!token) return;
-
-    set({ isLoading: true, error: null });
+    set({ isLoading: true });
     try {
       await apiClient.post('/tree/collect', {});
       await get().fetchTree();
       set({ isLoading: false });
-    } catch (error: any) {
-      set({
-        error: error.response?.data?.message || "Yig'ish xatosi",
-        isLoading: false,
-      });
-      throw error;
+    } catch (err: any) {
+      set({ isLoading: false });
+      throw err;
     }
   },
 
   claimReward: async () => {
-    const token = useAuthStore.getState().token;
-    if (!token) return;
-
-    set({ isLoading: true, error: null });
+    set({ isLoading: true });
     try {
-      const response = await apiClient.post('/tree/claim-reward', {});
+      const res = await apiClient.post('/tree/claim-reward', {});
       await get().fetchTree();
       await useAuthStore.getState().fetchUser();
       set({ isLoading: false });
-      return response.data.reward;
-    } catch (error: any) {
-      set({
-        error: error.response?.data?.message || 'Mukofot olish xatosi',
-        isLoading: false,
-      });
-      throw error;
+      return res.data.reward;
+    } catch (err: any) {
+      set({ isLoading: false });
+      throw err;
     }
   },
 }));
